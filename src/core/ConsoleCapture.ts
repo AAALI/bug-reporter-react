@@ -54,15 +54,20 @@ export class ConsoleCapture {
       const original = console[level];
       this.originals[level] = original;
 
+      const capture = this;
       console[level] = (...args: unknown[]) => {
-        this.consoleLogs.push({
-          level,
-          timestamp: new Date().toISOString(),
-          args: args.map(serializeArg),
-        });
+        try {
+          capture.consoleLogs.push({
+            level,
+            timestamp: new Date().toISOString(),
+            args: args.map(serializeArg),
+          });
 
-        if (this.consoleLogs.length > MAX_CONSOLE_ENTRIES) {
-          this.consoleLogs.shift();
+          if (capture.consoleLogs.length > MAX_CONSOLE_ENTRIES) {
+            capture.consoleLogs.shift();
+          }
+        } catch {
+          // Never let capture logic interfere with the original call
         }
 
         original.apply(console, args);
@@ -70,34 +75,42 @@ export class ConsoleCapture {
     }
 
     this.errorHandler = (event: ErrorEvent) => {
-      this.errors.push({
-        timestamp: new Date().toISOString(),
-        message: event.message || "Unknown error",
-        source: event.filename || undefined,
-        lineno: event.lineno || undefined,
-        colno: event.colno || undefined,
-        stack: event.error?.stack || undefined,
-        type: "error",
-      });
+      try {
+        this.errors.push({
+          timestamp: new Date().toISOString(),
+          message: event.message || "Unknown error",
+          source: event.filename || undefined,
+          lineno: event.lineno || undefined,
+          colno: event.colno || undefined,
+          stack: event.error?.stack || undefined,
+          type: "error",
+        });
 
-      if (this.errors.length > MAX_ERROR_ENTRIES) {
-        this.errors.shift();
+        if (this.errors.length > MAX_ERROR_ENTRIES) {
+          this.errors.shift();
+        }
+      } catch {
+        // Never interfere with error propagation
       }
     };
 
     window.addEventListener("error", this.errorHandler);
 
     this.rejectionHandler = (event: PromiseRejectionEvent) => {
-      const reason = event.reason;
-      this.errors.push({
-        timestamp: new Date().toISOString(),
-        message: reason instanceof Error ? reason.message : String(reason),
-        stack: reason instanceof Error ? reason.stack || undefined : undefined,
-        type: "unhandledrejection",
-      });
+      try {
+        const reason = event.reason;
+        this.errors.push({
+          timestamp: new Date().toISOString(),
+          message: reason instanceof Error ? reason.message : String(reason),
+          stack: reason instanceof Error ? reason.stack || undefined : undefined,
+          type: "unhandledrejection",
+        });
 
-      if (this.errors.length > MAX_ERROR_ENTRIES) {
-        this.errors.shift();
+        if (this.errors.length > MAX_ERROR_ENTRIES) {
+          this.errors.shift();
+        }
+      } catch {
+        // Never interfere with rejection propagation
       }
     };
 
