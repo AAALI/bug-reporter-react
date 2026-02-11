@@ -147,17 +147,15 @@ export class LinearIntegration implements BugReporterIntegration {
 
     const progress = onProgress ?? noop;
 
-    let screenshotUrl: string | null = null;
-    if (payload.screenshotBlob) {
-      progress("Uploading screenshot…");
-      screenshotUrl = await this.uploadAsset(payload.screenshotBlob, "bug-screenshot.png", "image/png");
-    }
-
-    let recordingUrl: string | null = null;
-    if (payload.videoBlob) {
-      progress("Uploading recording…");
-      recordingUrl = await this.uploadAsset(payload.videoBlob, "bug-recording.webm", "video/webm");
-    }
+    progress("Uploading media…");
+    const [screenshotUrl, recordingUrl] = await Promise.all([
+      payload.screenshotBlob
+        ? this.uploadAsset(payload.screenshotBlob, "bug-screenshot.png", "image/png")
+        : Promise.resolve(null),
+      payload.videoBlob
+        ? this.uploadAsset(payload.videoBlob, "bug-recording.webm", "video/webm")
+        : Promise.resolve(null),
+    ]);
 
     progress("Creating Linear issue…");
     const description = buildCleanDescription(payload, { screenshotUrl, recordingUrl });
@@ -165,10 +163,11 @@ export class LinearIntegration implements BugReporterIntegration {
 
     progress("Attaching logs…");
     const logsComment = "### Network Logs\n```text\n" + formatNetworkLogs(payload.networkLogs) + "\n```";
-    await this.addComment(issue.id, logsComment);
-
     const metadataComment = "### Client Metadata\n```json\n" + JSON.stringify(payload.metadata, null, 2) + "\n```";
-    await this.addComment(issue.id, metadataComment);
+    await Promise.all([
+      this.addComment(issue.id, logsComment),
+      this.addComment(issue.id, metadataComment),
+    ]);
 
     progress("Done!");
     return {

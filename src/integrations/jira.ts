@@ -140,22 +140,24 @@ export class JiraIntegration implements BugReporterIntegration {
     progress("Creating Jira issue…");
     const issue = await this.createIssue(payload);
 
+    progress("Uploading attachments…");
+    const uploads: Promise<void>[] = [];
+
     if (payload.screenshotBlob) {
-      progress("Uploading screenshot…");
-      await this.uploadAttachment(issue.key, payload.screenshotBlob, "bug-screenshot.png", "image/png");
+      uploads.push(this.uploadAttachment(issue.key, payload.screenshotBlob, "bug-screenshot.png", "image/png"));
     }
 
     if (payload.videoBlob) {
-      progress("Uploading recording…");
-      await this.uploadAttachment(issue.key, payload.videoBlob, "bug-recording.webm", "video/webm");
+      uploads.push(this.uploadAttachment(issue.key, payload.videoBlob, "bug-recording.webm", "video/webm"));
     }
 
-    progress("Attaching logs…");
     const logsBlob = new Blob([formatNetworkLogs(payload.networkLogs)], { type: "text/plain" });
-    await this.uploadAttachment(issue.key, logsBlob, "network-logs.txt", "text/plain");
+    uploads.push(this.uploadAttachment(issue.key, logsBlob, "network-logs.txt", "text/plain"));
 
     const metadataBlob = new Blob([JSON.stringify(payload.metadata, null, 2)], { type: "application/json" });
-    await this.uploadAttachment(issue.key, metadataBlob, "client-metadata.json", "application/json");
+    uploads.push(this.uploadAttachment(issue.key, metadataBlob, "client-metadata.json", "application/json"));
+
+    await Promise.all(uploads);
 
     progress("Done!");
     return {
