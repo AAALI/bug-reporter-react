@@ -191,25 +191,33 @@ export class JiraIntegration implements BugReporterIntegration {
     const formData = new FormData();
     formData.set("provider", "jira");
     formData.set("title", payload.title);
-    formData.set("description", payload.description);
-    formData.set("pageUrl", payload.pageUrl);
-    formData.set("userAgent", payload.userAgent);
-    formData.set("reportedAt", payload.stoppedAt);
-    formData.set("captureMode", payload.captureMode);
-    formData.set("clientMetadata", JSON.stringify(payload.metadata));
+    formData.set("description", buildCleanDescription(payload));
+    formData.set("issueType", this.issueType);
 
-    const formattedLogs = formatNetworkLogs(payload.networkLogs);
-    formData.append("requestsLogFile", new Blob([formattedLogs], { type: "text/plain" }), "network-logs.txt");
-    formData.append("clientMetadataFile", new Blob([JSON.stringify(payload.metadata, null, 2)], { type: "application/json" }), "client-metadata.json");
-
-    if (payload.videoBlob) {
-      const file = toBlobFile(payload.videoBlob, "bug-recording.webm", "video/webm");
-      formData.append("screenRecordingFile", file, file.name);
+    if (this.projectKey) {
+      formData.set("projectKey", this.projectKey);
     }
 
     if (payload.screenshotBlob) {
-      const file = toBlobFile(payload.screenshotBlob, "bug-screenshot.png", "image/png");
-      formData.append("screenshotFile", file, file.name);
+      formData.append("screenshotFile", toBlobFile(payload.screenshotBlob, "bug-screenshot.png", "image/png"), "bug-screenshot.png");
+    }
+
+    if (payload.videoBlob) {
+      formData.append("screenRecordingFile", toBlobFile(payload.videoBlob, "bug-recording.webm", "video/webm"), "bug-recording.webm");
+    }
+
+    formData.append("networkLogsFile", new Blob([formatNetworkLogs(payload.networkLogs)], { type: "text/plain" }), "network-logs.txt");
+    formData.append("clientMetadataFile", new Blob([JSON.stringify(payload.metadata, null, 2)], { type: "application/json" }), "client-metadata.json");
+
+    if (payload.consoleLogs.length > 0 || payload.jsErrors.length > 0) {
+      const consoleParts: string[] = [];
+      if (payload.jsErrors.length > 0) {
+        consoleParts.push("=== JavaScript Errors ===\n" + formatJsErrors(payload.jsErrors));
+      }
+      if (payload.consoleLogs.length > 0) {
+        consoleParts.push("=== Console Output ===\n" + formatConsoleLogs(payload.consoleLogs));
+      }
+      formData.append("consoleLogsFile", new Blob([consoleParts.join("\n\n")], { type: "text/plain" }), "console-logs.txt");
     }
 
     (onProgress ?? noop)("Submitting to Jira…");
