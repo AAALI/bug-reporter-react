@@ -56,18 +56,20 @@ import {
   BugReporterProvider,
   FloatingBugButton,
   BugReporterModal,
-  LinearIntegration,
+  JiraIntegration,
 } from "quick-bug-reporter-react";
 
-const linear = new LinearIntegration({
-  submitProxyEndpoint: "/api/bug-report",
+const jira = new JiraIntegration({
+  createIssueProxyEndpoint: "/api/jira/create-issue",
+  uploadAttachmentProxyEndpoint: "/api/jira/upload-attachment",
+  projectKey: "BUG",
 });
 
 export default function App({ children }) {
   return (
     <BugReporterProvider
-      integrations={{ linear }}
-      defaultProvider="linear"
+      integrations={{ jira }}
+      defaultProvider="jira"
     >
       {children}
       <FloatingBugButton />
@@ -81,69 +83,15 @@ That's it — a floating "Report Bug" button appears in the bottom-right corner.
 
 ## Integrations
 
-Both integrations support two modes:
-
-| Mode | When to use | How it works |
-|------|------------|--------------|
-| **Backend proxy** (recommended) | Production apps | Your server-side endpoint receives the report and calls Linear/Jira. API keys stay on the server. |
-| **Direct API** | Server-side only (Next.js API routes, etc.) | The library calls Linear/Jira APIs directly. **Does NOT work from browser-only SPAs due to CORS.** |
-
-### Linear
-
-```ts
-import { LinearIntegration } from "quick-bug-reporter-react";
-
-// ✅ Recommended: Backend proxy (works everywhere)
-const linear = new LinearIntegration({
-  submitProxyEndpoint: "/api/bug-report",
-});
-
-// Or split proxy endpoints for finer control:
-const linear = new LinearIntegration({
-  createIssueProxyEndpoint: "/api/linear/create-issue",
-  uploadProxyEndpoint: "/api/linear/upload",
-});
-
-// ⚠️ Direct API — server-side / Next.js API routes only
-const linear = new LinearIntegration({
-  apiKey: "lin_api_...",
-  teamId: "TEAM_ID",
-  projectId: "PROJECT_ID", // optional — assigns issues to a Linear project
-});
-```
-
-| Option | Description |
-|--------|-------------|
-| `apiKey` | Linear API key (direct mode only) |
-| `teamId` | Linear team ID |
-| `projectId` | Linear project ID — optional, assigns every issue to this project |
-| `submitProxyEndpoint` | Single endpoint that handles the entire submission |
-| `createIssueProxyEndpoint` | Proxy for issue creation only |
-| `uploadProxyEndpoint` | Proxy for file uploads only |
-| `fetchImpl` | Custom fetch implementation |
-
 ### Jira
 
 ```ts
 import { JiraIntegration } from "quick-bug-reporter-react";
 
-// ✅ Recommended: Backend proxy
-const jira = new JiraIntegration({
-  submitProxyEndpoint: "/api/bug-report",
-});
-
-// Or split proxy endpoints:
+// ✅ Recommended: split proxy endpoints (parallel uploads, fastest)
 const jira = new JiraIntegration({
   createIssueProxyEndpoint: "/api/jira/create-issue",
   uploadAttachmentProxyEndpoint: "/api/jira/upload-attachment",
-  projectKey: "BUG",
-});
-
-// ⚠️ Direct API — server-side only (CORS + exposes credentials)
-const jira = new JiraIntegration({
-  baseUrl: "https://your-domain.atlassian.net",
-  email: "you@example.com",
-  apiToken: "...",
   projectKey: "BUG",
   issueType: "Bug", // optional, defaults to "Bug"
 });
@@ -151,23 +99,149 @@ const jira = new JiraIntegration({
 
 | Option | Description |
 |--------|-------------|
-| `baseUrl` | Jira instance URL (direct mode only) |
-| `email` | Jira email (direct mode only) |
-| `apiToken` | Jira API token (direct mode only) |
 | `projectKey` | Jira project key (e.g. `"BUG"`) |
 | `issueType` | Issue type name, defaults to `"Bug"` |
-| `submitProxyEndpoint` | Single endpoint that handles the entire submission |
-| `createIssueProxyEndpoint` | Proxy for issue creation only |
-| `uploadAttachmentProxyEndpoint` | Proxy for attachment uploads only |
+| `createIssueProxyEndpoint` | Proxy for issue creation (recommended) |
+| `uploadAttachmentProxyEndpoint` | Proxy for attachment uploads (recommended) |
+| `submitProxyEndpoint` | Single endpoint fallback (slower — see [below](#legacy-single-endpoint)) |
+| `baseUrl` | Jira instance URL (direct mode only — not for browser SPAs) |
+| `email` | Jira email (direct mode only) |
+| `apiToken` | Jira API token (direct mode only) |
+| `fetchImpl` | Custom fetch implementation |
+
+### Linear
+
+```ts
+import { LinearIntegration } from "quick-bug-reporter-react";
+
+// ✅ Recommended: split proxy endpoints (parallel uploads, fastest)
+const linear = new LinearIntegration({
+  createIssueProxyEndpoint: "/api/linear/create-issue",
+  uploadProxyEndpoint: "/api/linear/upload",
+  teamId: "TEAM_ID",
+  projectId: "PROJECT_ID", // optional — assigns issues to a Linear project
+});
+```
+
+| Option | Description |
+|--------|-------------|
+| `teamId` | Linear team ID |
+| `projectId` | Linear project ID — optional, assigns every issue to this project |
+| `createIssueProxyEndpoint` | Proxy for issue creation (recommended) |
+| `uploadProxyEndpoint` | Proxy for file uploads (recommended) |
+| `submitProxyEndpoint` | Single endpoint fallback (slower — see [below](#legacy-single-endpoint)) |
+| `apiKey` | Linear API key (direct mode only — not for browser SPAs) |
 | `fetchImpl` | Custom fetch implementation |
 
 ---
 
-### Proxy endpoint contract
+### Proxy endpoint contract (split endpoints)
 
-When using `submitProxyEndpoint`, the library sends a single `FormData` POST with a **pre-formatted description** and all attachment files. Your proxy just needs to create the issue and upload the files — no custom formatting required.
+With split endpoints the library handles formatting and **uploads attachments in parallel** — your proxy only needs to forward auth. This is ~3× faster than a single endpoint.
 
-#### FormData fields
+#### `createIssueProxyEndpoint`
+
+Receives a JSON POST:
+
+```json
+{
+  "summary": "Bug title",                  // Jira
+  "title": "Bug title",                    // Linear
+  "description": "Pre-formatted description (ready to use as-is)",
+  "issueType": "Bug",                      // Jira only
+  "projectKey": "BUG",                     // Jira only
+  "teamId": "...",                          // Linear only
+  "projectId": "..."                        // Linear only (if configured)
+}
+```
+
+Must return:
+
+```json
+// Jira
+{ "id": "10001", "key": "BUG-42", "url": "https://you.atlassian.net/browse/BUG-42" }
+
+// Linear
+{ "id": "...", "identifier": "ENG-123", "url": "https://linear.app/..." }
+```
+
+#### `uploadAttachmentProxyEndpoint` (Jira)
+
+Receives `FormData` with `issueKey` (string) + `file` (File). Returns `{ "ok": true }`.
+
+#### `uploadProxyEndpoint` (Linear)
+
+Receives `FormData` with `file` (File) + `filename` (string) + `contentType` (string). Returns `{ "assetUrl": "https://..." }`.
+
+#### Example: Jira proxy (Node.js / Express)
+
+```ts
+// POST /api/jira/create-issue — forward issue creation with auth
+app.post("/api/jira/create-issue", express.json(), async (req, res) => {
+  const { summary, description, issueType, projectKey } = req.body;
+
+  // Convert plain-text description to Jira ADF
+  const adf = {
+    type: "doc", version: 1,
+    content: description.split(/\n{2,}/).filter(Boolean).map(chunk => ({
+      type: "paragraph",
+      content: [{ type: "text", text: chunk.trim() }],
+    })),
+  };
+
+  const jiraRes = await fetch(`${JIRA_BASE}/rest/api/3/issue`, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${btoa(`${JIRA_EMAIL}:${JIRA_TOKEN}`)}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      fields: {
+        project: { key: projectKey },
+        summary,
+        description: adf,
+        issuetype: { name: issueType || "Bug" },
+      },
+    }),
+  });
+
+  const data = await jiraRes.json();
+  res.status(jiraRes.ok ? 201 : jiraRes.status).json(
+    jiraRes.ok
+      ? { id: data.id, key: data.key, url: `${JIRA_BASE}/browse/${data.key}` }
+      : { error: data.errorMessages?.join("; ") || "Jira issue creation failed" }
+  );
+});
+
+// POST /api/jira/upload-attachment — forward file upload with auth
+app.post("/api/jira/upload-attachment", upload.single("file"), async (req, res) => {
+  const issueKey = req.body.issueKey;
+  const form = new FormData();
+  form.append("file", req.file.buffer, req.file.originalname);
+
+  const jiraRes = await fetch(`${JIRA_BASE}/rest/api/3/issue/${issueKey}/attachments`, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${btoa(`${JIRA_EMAIL}:${JIRA_TOKEN}`)}`,
+      "X-Atlassian-Token": "no-check",
+    },
+    body: form,
+  });
+
+  res.status(jiraRes.ok ? 200 : jiraRes.status).json(
+    jiraRes.ok ? { ok: true } : { error: "Upload failed" }
+  );
+});
+```
+
+---
+
+### Legacy: single endpoint
+
+`submitProxyEndpoint` bundles everything into one request. The proxy must create the issue **and** upload all attachments server-side, which means uploads happen sequentially and are **~3× slower**. Use split endpoints above instead when possible.
+
+<details>
+<summary>Single endpoint FormData fields (click to expand)</summary>
 
 | Field | Type | Always sent | Description |
 |-------|------|:-----------:|-------------|
@@ -184,81 +258,11 @@ When using `submitProxyEndpoint`, the library sends a single `FormData` POST wit
 | `clientMetadataFile` | File | Yes | `client-metadata.json` |
 | `consoleLogsFile` | File | If present | `console-logs.txt` (JS errors + console output) |
 
-#### Expected response
+**Jira response:** `{ "jira": { "id": "...", "key": "BUG-42", "url": "..." }, "warnings": [] }`
 
-**Jira proxy:**
-```json
-{
-  "jira": { "id": "10001", "key": "BUG-42", "url": "https://you.atlassian.net/browse/BUG-42" },
-  "warnings": []
-}
-```
+**Linear response:** `{ "linear": { "id": "...", "identifier": "ENG-123", "url": "..." }, "warnings": [] }`
 
-**Linear proxy:**
-```json
-{
-  "linear": { "id": "...", "identifier": "ENG-123", "url": "https://linear.app/..." },
-  "warnings": []
-}
-```
-
-#### Example Jira proxy (Node.js / Express)
-
-```ts
-app.post("/api/bug-report", upload.any(), async (req, res) => {
-  const { title, description, issueType, projectKey } = req.body;
-
-  // 1. Convert plain-text description to Jira ADF
-  const adf = {
-    type: "doc", version: 1,
-    content: description.split(/\n{2,}/).filter(Boolean).map(chunk => ({
-      type: "paragraph",
-      content: [{ type: "text", text: chunk.trim() }],
-    })),
-  };
-
-  // 2. Create the issue
-  const issue = await fetch(`${JIRA_BASE}/rest/api/3/issue`, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${btoa(`${JIRA_EMAIL}:${JIRA_TOKEN}`)}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      fields: {
-        project: { key: projectKey },
-        summary: title,
-        description: adf,
-        issuetype: { name: issueType || "Bug" },
-      },
-    }),
-  }).then(r => r.json());
-
-  // 3. Upload all attachment files
-  for (const file of req.files) {
-    const form = new FormData();
-    form.append("file", file.buffer, file.originalname);
-    await fetch(`${JIRA_BASE}/rest/api/3/issue/${issue.key}/attachments`, {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${btoa(`${JIRA_EMAIL}:${JIRA_TOKEN}`)}`,
-        "X-Atlassian-Token": "no-check",
-      },
-      body: form,
-    });
-  }
-
-  res.json({ jira: { id: issue.id, key: issue.key, url: `${JIRA_BASE}/browse/${issue.key}` } });
-});
-```
-
-### Advanced: Split proxy endpoints
-
-Instead of a single `submitProxyEndpoint`, you can use separate endpoints for issue creation and file uploads. This gives the **library** full control over formatting while your proxy only handles auth:
-
-- **`createIssueProxyEndpoint`** — receives `{ title, description, issueType, projectKey }` as JSON, returns `{ id, key, url }`
-- **`uploadAttachmentProxyEndpoint`** (Jira) — receives `FormData` with `issueKey` + `file`, returns `{ ok: true }`
-- **`uploadProxyEndpoint`** (Linear) — receives `FormData` with `file` + `filename` + `contentType`, returns `{ assetUrl }`
+</details>
 
 ### Advanced: Custom fetch
 
