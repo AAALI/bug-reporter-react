@@ -1,5 +1,6 @@
 import { BugSession } from "./BugSession";
 import { CaptureRegion } from "./ScreenshotCapturer";
+import type { ConsoleLogEntry, CapturedJsError } from "./ConsoleCapture";
 import {
   BugClientMetadata,
   BugReporterIntegration,
@@ -21,6 +22,8 @@ type BugReporterOptions = {
 type BugReporterSubmitOptions = {
   screenshotBlob?: Blob | null;
   metadata?: Partial<BugClientMetadata>;
+  consoleLogs?: ConsoleLogEntry[];
+  jsErrors?: CapturedJsError[];
   onProgress?: SubmitProgressCallback;
 };
 
@@ -86,6 +89,8 @@ export class BugReporter {
       videoBlob: artifacts.videoBlob,
       screenshotBlob: options.screenshotBlob ?? artifacts.screenshotBlob,
       networkLogs: artifacts.networkLogs,
+      consoleLogs: options.consoleLogs ?? [],
+      jsErrors: options.jsErrors ?? [],
       captureMode: artifacts.captureMode,
       pageUrl: typeof window !== "undefined" ? window.location.href : "",
       userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "",

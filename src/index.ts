@@ -4,6 +4,8 @@ export { ScreenRecorder } from "./core/ScreenRecorder";
 export { ScreenshotCapturer } from "./core/ScreenshotCapturer";
 export type { CaptureRegion } from "./core/ScreenshotCapturer";
 export { NetworkLogger } from "./core/NetworkLogger";
+export { ConsoleCapture } from "./core/ConsoleCapture";
+export type { ConsoleLogEntry, CapturedJsError } from "./core/ConsoleCapture";
 
 export type {
   BugClientMetadata,
@@ -21,6 +23,8 @@ export type {
 export {
   DEFAULT_MAX_RECORDING_MS,
   collectClientEnvironmentMetadata,
+  formatConsoleLogs,
+  formatJsErrors,
   formatNetworkLogs,
   toErrorMessage,
 } from "./core/types";

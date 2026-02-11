@@ -1,3 +1,7 @@
+import type { ConsoleLogEntry, CapturedJsError } from "./ConsoleCapture";
+
+export type { ConsoleLogEntry, CapturedJsError };
+
 export const DEFAULT_MAX_RECORDING_MS = 2 * 60 * 1000;
 
 export type BugTrackerProvider = "linear" | "jira";
@@ -85,6 +89,8 @@ export type BugReportPayload = {
   videoBlob: Blob | null;
   screenshotBlob: Blob | null;
   networkLogs: NetworkLogEntry[];
+  consoleLogs: ConsoleLogEntry[];
+  jsErrors: CapturedJsError[];
   captureMode: ReportCaptureMode;
   pageUrl: string;
   userAgent: string;
@@ -107,6 +113,39 @@ export type SubmitProgressCallback = (message: string) => void;
 export interface BugReporterIntegration {
   readonly provider: BugTrackerProvider;
   submit(payload: BugReportPayload, onProgress?: SubmitProgressCallback): Promise<BugSubmitResult>;
+}
+
+export function formatConsoleLogs(logs: ConsoleLogEntry[]): string {
+  if (logs.length === 0) {
+    return "No console output captured.";
+  }
+
+  return logs
+    .map((entry) => {
+      const tag = entry.level.toUpperCase().padEnd(5);
+      const args = entry.args.join(" ");
+      return `[${entry.timestamp}] ${tag} ${args}`;
+    })
+    .join("\n");
+}
+
+export function formatJsErrors(errors: CapturedJsError[]): string {
+  if (errors.length === 0) {
+    return "No JavaScript errors captured.";
+  }
+
+  return errors
+    .map((entry) => {
+      const lines = [`[${entry.timestamp}] ${entry.type}: ${entry.message}`];
+      if (entry.source) {
+        lines.push(`  at ${entry.source}${entry.lineno ? `:${entry.lineno}` : ""}${entry.colno ? `:${entry.colno}` : ""}`);
+      }
+      if (entry.stack) {
+        lines.push(entry.stack.split("\n").map((l) => `  ${l}`).join("\n"));
+      }
+      return lines.join("\n");
+    })
+    .join("\n\n");
 }
 
 export function formatNetworkLogs(logs: NetworkLogEntry[]): string {

@@ -3,6 +3,8 @@ import {
   BugReporterIntegration,
   BugSubmitResult,
   SubmitProgressCallback,
+  formatConsoleLogs,
+  formatJsErrors,
   formatNetworkLogs,
   toBlobFile,
 } from "../core/types";
@@ -162,12 +164,26 @@ export class LinearIntegration implements BugReporterIntegration {
     const issue = await this.createIssue(payload.title, description);
 
     progress("Attaching logs…");
+    const comments: Promise<void>[] = [];
+
     const logsComment = "### Network Logs\n```text\n" + formatNetworkLogs(payload.networkLogs) + "\n```";
+    comments.push(this.addComment(issue.id, logsComment));
+
+    if (payload.jsErrors.length > 0 || payload.consoleLogs.length > 0) {
+      const parts: string[] = [];
+      if (payload.jsErrors.length > 0) {
+        parts.push("### JavaScript Errors\n```text\n" + formatJsErrors(payload.jsErrors) + "\n```");
+      }
+      if (payload.consoleLogs.length > 0) {
+        parts.push("### Console Output\n```text\n" + formatConsoleLogs(payload.consoleLogs) + "\n```");
+      }
+      comments.push(this.addComment(issue.id, parts.join("\n\n")));
+    }
+
     const metadataComment = "### Client Metadata\n```json\n" + JSON.stringify(payload.metadata, null, 2) + "\n```";
-    await Promise.all([
-      this.addComment(issue.id, logsComment),
-      this.addComment(issue.id, metadataComment),
-    ]);
+    comments.push(this.addComment(issue.id, metadataComment));
+
+    await Promise.all(comments);
 
     progress("Done!");
     return {

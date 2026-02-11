@@ -4,6 +4,8 @@ import {
   BugReporterIntegration,
   BugSubmitResult,
   SubmitProgressCallback,
+  formatConsoleLogs,
+  formatJsErrors,
   formatNetworkLogs,
   toBlobFile,
 } from "../core/types";
@@ -153,6 +155,18 @@ export class JiraIntegration implements BugReporterIntegration {
 
     const logsBlob = new Blob([formatNetworkLogs(payload.networkLogs)], { type: "text/plain" });
     uploads.push(this.uploadAttachment(issue.key, logsBlob, "network-logs.txt", "text/plain"));
+
+    if (payload.consoleLogs.length > 0 || payload.jsErrors.length > 0) {
+      const consoleParts: string[] = [];
+      if (payload.jsErrors.length > 0) {
+        consoleParts.push("=== JavaScript Errors ===\n" + formatJsErrors(payload.jsErrors));
+      }
+      if (payload.consoleLogs.length > 0) {
+        consoleParts.push("=== Console Output ===\n" + formatConsoleLogs(payload.consoleLogs));
+      }
+      const consoleBlob = new Blob([consoleParts.join("\n\n")], { type: "text/plain" });
+      uploads.push(this.uploadAttachment(issue.key, consoleBlob, "console-logs.txt", "text/plain"));
+    }
 
     const metadataBlob = new Blob([JSON.stringify(payload.metadata, null, 2)], { type: "application/json" });
     uploads.push(this.uploadAttachment(issue.key, metadataBlob, "client-metadata.json", "application/json"));

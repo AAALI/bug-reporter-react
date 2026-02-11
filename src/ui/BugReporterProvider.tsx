@@ -12,6 +12,7 @@ import {
 } from "react";
 
 import { BugReporter } from "../core/BugReporter";
+import { ConsoleCapture } from "../core/ConsoleCapture";
 import type { CaptureRegion } from "../core/ScreenshotCapturer";
 import {
   BugClientMetadata,
@@ -109,6 +110,18 @@ export function BugReporterProvider({
   });
 
   const reporterRef = useRef<BugReporter | null>(null);
+  const consoleCaptureRef = useRef<ConsoleCapture | null>(null);
+
+  useEffect(() => {
+    const capture = new ConsoleCapture();
+    capture.start();
+    consoleCaptureRef.current = capture;
+
+    return () => {
+      capture.stop();
+      consoleCaptureRef.current = null;
+    };
+  }, []);
 
   const availableProviders = useMemo(() => {
     return (["linear", "jira"] as const).filter((provider) => Boolean(integrations[provider]));
@@ -259,6 +272,21 @@ export function BugReporterProvider({
 
     return () => {
       window.clearInterval(interval);
+    };
+  }, [isRecording]);
+
+  useEffect(() => {
+    if (!isRecording) {
+      return;
+    }
+
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+    };
+
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", onBeforeUnload);
     };
   }, [isRecording]);
 
@@ -539,10 +567,17 @@ export function BugReporterProvider({
             : undefined,
       };
 
+      const { consoleLogs, jsErrors } = consoleCaptureRef.current?.snapshot() ?? {
+        consoleLogs: [],
+        jsErrors: [],
+      };
+
       try {
         const result = await reporter.submit(title, description, {
           screenshotBlob: screenshotBlobForSubmit,
           metadata,
+          consoleLogs,
+          jsErrors,
           onProgress: setSubmissionProgress,
         });
 
