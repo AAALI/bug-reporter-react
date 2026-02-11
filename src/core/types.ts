@@ -1,0 +1,265 @@
+export const DEFAULT_MAX_RECORDING_MS = 2 * 60 * 1000;
+
+export type BugTrackerProvider = "linear" | "jira";
+
+export type ReportCaptureMode = "video" | "screenshot";
+
+export type RecordingStopReason = "manual" | "time_limit" | "screen_ended";
+
+export type NetworkLogEntry = {
+  method: string;
+  url: string;
+  status: number | null;
+  durationMs: number;
+  timestamp: string;
+};
+
+export type ScreenshotHighlightRegion = {
+  // Normalized coordinates (0..1) based on the screenshot image dimensions.
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export type BugClientMetadata = {
+  locale: string | null;
+  timezone: string | null;
+  language: string | null;
+  languages: string[];
+  platform: string | null;
+  referrer: string | null;
+  colorScheme: "light" | "dark" | "unknown";
+  viewport: {
+    width: number | null;
+    height: number | null;
+    pixelRatio: number | null;
+  };
+  screen: {
+    width: number | null;
+    height: number | null;
+    availWidth: number | null;
+    availHeight: number | null;
+    colorDepth: number | null;
+  };
+  device: {
+    hardwareConcurrency: number | null;
+    deviceMemoryGb: number | null;
+    maxTouchPoints: number | null;
+    online: boolean | null;
+    cookieEnabled: boolean | null;
+  };
+  connection: {
+    effectiveType: string | null;
+    downlinkMbps: number | null;
+    rttMs: number | null;
+    saveData: boolean | null;
+  };
+  captureMode: ReportCaptureMode;
+  capture: {
+    startedAt: string;
+    stoppedAt: string;
+    elapsedMs: number;
+  };
+  annotation?: {
+    imageWidth: number;
+    imageHeight: number;
+    highlights: ScreenshotHighlightRegion[];
+  };
+};
+
+export type BugSessionArtifacts = {
+  videoBlob: Blob | null;
+  screenshotBlob: Blob | null;
+  networkLogs: NetworkLogEntry[];
+  captureMode: ReportCaptureMode;
+  startedAt: string;
+  stoppedAt: string;
+  elapsedMs: number;
+  stopReason: RecordingStopReason;
+};
+
+export type BugReportPayload = {
+  title: string;
+  description: string;
+  videoBlob: Blob | null;
+  screenshotBlob: Blob | null;
+  networkLogs: NetworkLogEntry[];
+  captureMode: ReportCaptureMode;
+  pageUrl: string;
+  userAgent: string;
+  startedAt: string;
+  stoppedAt: string;
+  elapsedMs: number;
+  metadata: BugClientMetadata;
+};
+
+export type BugSubmitResult = {
+  provider: BugTrackerProvider;
+  issueId: string;
+  issueKey: string;
+  issueUrl: string | null;
+  warnings: string[];
+};
+
+export type SubmitProgressCallback = (message: string) => void;
+
+export interface BugReporterIntegration {
+  readonly provider: BugTrackerProvider;
+  submit(payload: BugReportPayload, onProgress?: SubmitProgressCallback): Promise<BugSubmitResult>;
+}
+
+export function formatNetworkLogs(logs: NetworkLogEntry[]): string {
+  if (logs.length === 0) {
+    return "No network requests captured.";
+  }
+
+  return logs
+    .map((entry) => {
+      const status = entry.status === null ? "FAILED" : String(entry.status);
+      return `[${entry.timestamp}] ${entry.method.toUpperCase()} ${entry.url} -> ${status} (${entry.durationMs}ms)`;
+    })
+    .join("\n");
+}
+
+export function toErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message;
+  }
+
+  return "Unknown error";
+}
+
+export function toBlobFile(blob: Blob, fileName: string, fallbackMimeType: string): File {
+  return new File([blob], fileName, {
+    type: blob.type || fallbackMimeType,
+    lastModified: Date.now(),
+  });
+}
+
+export function toRecordingFile(blob: Blob, fileName = "bug-recording.webm"): File {
+  return toBlobFile(blob, fileName, "video/webm");
+}
+
+export function toScreenshotFile(blob: Blob, fileName = "bug-screenshot.png"): File {
+  return toBlobFile(blob, fileName, "image/png");
+}
+
+export function collectClientEnvironmentMetadata(): Omit<BugClientMetadata, "captureMode" | "capture"> {
+  if (typeof window === "undefined" || typeof navigator === "undefined") {
+    return {
+      locale: null,
+      timezone: null,
+      language: null,
+      languages: [],
+      platform: null,
+      referrer: null,
+      colorScheme: "unknown",
+      viewport: {
+        width: null,
+        height: null,
+        pixelRatio: null,
+      },
+      screen: {
+        width: null,
+        height: null,
+        availWidth: null,
+        availHeight: null,
+        colorDepth: null,
+      },
+      device: {
+        hardwareConcurrency: null,
+        deviceMemoryGb: null,
+        maxTouchPoints: null,
+        online: null,
+        cookieEnabled: null,
+      },
+      connection: {
+        effectiveType: null,
+        downlinkMbps: null,
+        rttMs: null,
+        saveData: null,
+      },
+    };
+  }
+
+  const nav = navigator as Navigator & {
+    connection?: {
+      effectiveType?: string;
+      downlink?: number;
+      rtt?: number;
+      saveData?: boolean;
+    };
+    mozConnection?: {
+      effectiveType?: string;
+      downlink?: number;
+      rtt?: number;
+      saveData?: boolean;
+    };
+    webkitConnection?: {
+      effectiveType?: string;
+      downlink?: number;
+      rtt?: number;
+      saveData?: boolean;
+    };
+    deviceMemory?: number;
+    userAgentData?: {
+      platform?: string;
+    };
+  };
+
+  const connection = nav.connection || nav.mozConnection || nav.webkitConnection;
+
+  let colorScheme: "light" | "dark" | "unknown" = "unknown";
+  if (typeof window.matchMedia === "function") {
+    if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+      colorScheme = "dark";
+    } else if (window.matchMedia("(prefers-color-scheme: light)").matches) {
+      colorScheme = "light";
+    }
+  }
+
+  let timezone: string | null = null;
+  try {
+    timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || null;
+  } catch {
+    timezone = null;
+  }
+
+  return {
+    locale: typeof navigator.language === "string" ? navigator.language : null,
+    timezone,
+    language: typeof navigator.language === "string" ? navigator.language : null,
+    languages: Array.isArray(navigator.languages) ? [...navigator.languages] : [],
+    platform:
+      (typeof nav.userAgentData?.platform === "string" && nav.userAgentData.platform) ||
+      (typeof navigator.platform === "string" ? navigator.platform : null),
+    referrer: typeof document !== "undefined" ? document.referrer || null : null,
+    colorScheme,
+    viewport: {
+      width: typeof window.innerWidth === "number" ? window.innerWidth : null,
+      height: typeof window.innerHeight === "number" ? window.innerHeight : null,
+      pixelRatio: typeof window.devicePixelRatio === "number" ? window.devicePixelRatio : null,
+    },
+    screen: {
+      width: typeof window.screen?.width === "number" ? window.screen.width : null,
+      height: typeof window.screen?.height === "number" ? window.screen.height : null,
+      availWidth: typeof window.screen?.availWidth === "number" ? window.screen.availWidth : null,
+      availHeight: typeof window.screen?.availHeight === "number" ? window.screen.availHeight : null,
+      colorDepth: typeof window.screen?.colorDepth === "number" ? window.screen.colorDepth : null,
+    },
+    device: {
+      hardwareConcurrency: typeof navigator.hardwareConcurrency === "number" ? navigator.hardwareConcurrency : null,
+      deviceMemoryGb: typeof nav.deviceMemory === "number" ? nav.deviceMemory : null,
+      maxTouchPoints: typeof navigator.maxTouchPoints === "number" ? navigator.maxTouchPoints : null,
+      online: typeof navigator.onLine === "boolean" ? navigator.onLine : null,
+      cookieEnabled: typeof navigator.cookieEnabled === "boolean" ? navigator.cookieEnabled : null,
+    },
+    connection: {
+      effectiveType: typeof connection?.effectiveType === "string" ? connection.effectiveType : null,
+      downlinkMbps: typeof connection?.downlink === "number" ? connection.downlink : null,
+      rttMs: typeof connection?.rtt === "number" ? connection.rtt : null,
+      saveData: typeof connection?.saveData === "boolean" ? connection.saveData : null,
+    },
+  };
+}
