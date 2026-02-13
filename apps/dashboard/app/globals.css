@@ -136,25 +136,6 @@
   }
 }
 
-@keyframes accent-breathe {
-  0%,
-  100% {
-    filter: saturate(100%);
-  }
-  50% {
-    filter: saturate(135%);
-  }
-}
-
-@keyframes spectrum-shift {
-  0% {
-    background-position: 0% 50%;
-  }
-  100% {
-    background-position: 100% 50%;
-  }
-}
-
 @keyframes bridge-breathe {
   0%,
   100% {
@@ -162,62 +143,30 @@
     box-shadow: 0 12px 26px rgb(20 184 166 / 20%);
   }
   50% {
-    transform: translateY(-2px) scale(1.01);
-    box-shadow: 0 16px 34px rgb(20 184 166 / 28%);
+    transform: translateY(-1px) scale(1.005);
+    box-shadow: 0 14px 30px rgb(20 184 166 / 24%);
   }
 }
 
-@keyframes hop-dot {
+@keyframes flow-line-shift {
   0% {
-    opacity: 0;
-    transform: translateX(-15px) scale(0.72);
-  }
-  20% {
-    opacity: 1;
-    transform: translateX(-8px) scale(1);
-  }
-  80% {
-    opacity: 1;
-    transform: translateX(8px) scale(1);
+    background-position: 120% 0;
   }
   100% {
-    opacity: 0;
-    transform: translateX(15px) scale(0.72);
+    background-position: -20% 0;
   }
 }
 
 @keyframes integration-glow {
   0%,
-  75%,
+  88%,
   100% {
     border-color: rgb(226 232 240);
     box-shadow: 0 0 0 rgb(20 184 166 / 0%);
   }
-  86% {
+  93% {
     border-color: rgb(20 184 166 / 35%);
     box-shadow: 0 0 0 1px rgb(20 184 166 / 12%);
-  }
-}
-
-@keyframes pill-pulse {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-1px);
-  }
-}
-
-@keyframes proof-dot {
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.08);
-    opacity: 0.84;
   }
 }
 
@@ -250,19 +199,8 @@
     animation-delay: 240ms;
   }
 
-  .hero-accent {
-    animation: accent-breathe 5s ease-in-out infinite;
-    will-change: filter;
-  }
-
-  .flow-spectrum {
-    background-size: 220% 220%;
-    animation: spectrum-shift 9s linear infinite alternate;
-    will-change: background-position;
-  }
-
   .bridge-card {
-    animation: bridge-breathe 3.2s ease-in-out infinite;
+    animation: bridge-breathe 4.2s ease-in-out infinite;
     will-change: transform, box-shadow;
   }
 
@@ -286,8 +224,11 @@
     background: linear-gradient(
       90deg,
       rgb(203 213 225) 0%,
-      rgb(148 163 184 / 70%) 100%
+      rgb(20 184 166 / 60%) 50%,
+      rgb(203 213 225) 100%
     );
+    background-size: 200% 100%;
+    animation: flow-line-shift 2.6s linear infinite;
   }
 
   .flow-hop-arrow {
@@ -296,23 +237,8 @@
     text-shadow: 0 0 1px rgb(248 250 252);
   }
 
-  .flow-hop-dot {
-    position: absolute;
-    z-index: 2;
-    top: 50%;
-    left: 50%;
-    width: 0.4rem;
-    height: 0.4rem;
-    border-radius: 9999px;
-    transform: translate(-50%, -50%);
-    background: rgb(20 184 166);
-    box-shadow: 0 0 0 3px rgb(20 184 166 / 16%);
-    animation: hop-dot 1.7s ease-in-out infinite;
-    will-change: transform, opacity;
-  }
-
-  .flow-hop-2 .flow-hop-dot {
-    animation-delay: 420ms;
+  .flow-hop-2 .flow-hop-line {
+    animation-delay: 850ms;
   }
 
   .flow-hop-meta {
@@ -323,56 +249,25 @@
   .flow-hop-meta .flow-hop-line {
     left: 3px;
     right: 3px;
-  }
-
-  .flow-hop-meta .flow-hop-dot {
-    animation-delay: 180ms;
+    animation-delay: 420ms;
   }
 
   .integration-row {
-    animation: integration-glow 2.9s ease-in-out infinite;
+    animation: integration-glow 4.8s ease-in-out infinite;
     will-change: border-color, box-shadow;
   }
 
   .integration-row-2 {
-    animation-delay: 850ms;
-  }
-
-  .metadata-pill {
-    animation: pill-pulse 2.8s ease-in-out infinite;
-    will-change: transform;
-  }
-
-  .dashboard-pill {
-    animation: pill-pulse 2.8s ease-in-out infinite;
-    animation-delay: 500ms;
-    will-change: transform;
-  }
-
-  .proof-row svg {
-    animation: proof-dot 2.4s ease-in-out infinite;
-    will-change: transform, opacity;
-  }
-
-  .proof-row-2 svg {
-    animation-delay: 180ms;
-  }
-
-  .proof-row-3 svg {
-    animation-delay: 360ms;
+    animation-delay: 1.7s;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .hero-reveal,
-  .hero-accent,
-  .flow-spectrum,
   .bridge-card,
-  .flow-hop-dot,
+  .flow-hop-line,
   .integration-row,
-  .metadata-pill,
-  .dashboard-pill,
-  .proof-row svg {
+  .flow-hop-meta .flow-hop-line {
     animation: none !important;
   }
 }
