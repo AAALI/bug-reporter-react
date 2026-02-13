@@ -4,7 +4,7 @@ import {
   BugReporterModal,
   LinearIntegration,
   JiraIntegration,
-} from "bug-reporter-react";
+} from "quick-bug-reporter-react";
 
 // Custom fetch that rewrites GCS URLs through the Vite dev proxy
 const proxyFetch: typeof fetch = (input, init) => {

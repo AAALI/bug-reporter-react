@@ -1,0 +1,32 @@
+export { ConsoleCapture } from "./ConsoleCapture";
+export type { ConsoleLogEntry, CapturedJsError } from "./ConsoleCapture";
+
+export { NetworkLogger } from "./NetworkLogger";
+
+export type {
+  BugClientMetadata,
+  BugReportPayload,
+  BugReporterIntegration,
+  BugSessionArtifacts,
+  BugSubmitResult,
+  BugTrackerProvider,
+  NetworkLogEntry,
+  RecordingStopReason,
+  ReportCaptureMode,
+  ScreenshotHighlightRegion,
+  SubmitProgressCallback,
+} from "./types";
+export {
+  DEFAULT_MAX_RECORDING_MS,
+  formatConsoleLogs,
+  formatJsErrors,
+  formatNetworkLogs,
+  toErrorMessage,
+  toBlobFile,
+  toRecordingFile,
+  toScreenshotFile,
+} from "./types";
+
+export { LinearIntegration, type LinearIntegrationOptions } from "./integrations/linear";
+export { JiraIntegration, type JiraIntegrationOptions } from "./integrations/jira";
+export type { BugReporterIntegrations } from "./integrations";

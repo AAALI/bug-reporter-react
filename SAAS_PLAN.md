@@ -457,63 +457,83 @@ export class CloudIntegration implements BugReporterIntegration {
 
 ## Repo Structure
 
+Two independent NPM packages share an internal `@quick-bug-reporter/core` workspace package (never published). Both SDKs will use the same `CloudIntegration` to submit to the Supabase Edge Function.
+
 ```
-bug-reporter-saas/
+quick-bug-reporter/
+│
 ├── packages/
-│   └── react/                       # npm package + CloudIntegration
-│       ├── src/
-│       │   ├── core/
-│       │   ├── integrations/
-│       │   │   ├── linear.ts        # unchanged
-│       │   │   ├── jira.ts          # unchanged
-│       │   │   └── cloud.ts         # NEW
-│       │   └── ui/
-│       └── package.json
+│   ├── core/                            # ✅ DONE — INTERNAL (private: true), bundled into each SDK
+│   │   └── src/
+│   │       ├── types.ts                 # Shared types, formatters, utilities
+│   │       ├── NetworkLogger.ts         # fetch intercept
+│   │       ├── ConsoleCapture.ts        # console + error capture
+│   │       ├── integrations/
+│   │       │   ├── linear.ts
+│   │       │   ├── jira.ts
+│   │       │   └── cloud.ts             # TODO — CloudIntegration (SaaS Phase 1)
+│   │       └── index.ts                 # barrel export
+│   │
+│   ├── react/                           # ✅ DONE — NPM: "quick-bug-reporter-react"
+│   │   └── src/
+│   │       ├── core/                    # BugReporter, BugSession, ScreenRecorder,
+│   │       │                            # ScreenshotCapturer, WebMetadata
+│   │       ├── ui/                      # Radix Dialog, Tailwind, canvas annotator
+│   │       ├── lib/utils.ts             # cn() helper
+│   │       ├── styles.css               # Tailwind v4 source
+│   │       └── index.ts
+│   │
+│   └── react-native/                    # ✅ SCAFFOLD — NPM: "quick-bug-reporter-react-native"
+│       └── src/
+│           └── index.ts                 # Re-exports core (RN-specific code TODO)
 │
-├── apps/
-│   └── dashboard/                   # Next.js on Cloudflare Pages
-│       ├── app/
-│       │   ├── (auth)/login/
-│       │   ├── (dashboard)/
-│       │   │   ├── page.tsx         # projects overview + sparklines
-│       │   │   ├── projects/[id]/
-│       │   │   │   ├── page.tsx     # project settings
-│       │   │   │   ├── analytics/   # Sentry-style analytics
-│       │   │   │   ├── reports/     # recent reports table
-│       │   │   │   └── integrations/
-│       │   │   └── settings/
-│       │   └── layout.tsx
-│       ├── lib/supabase.ts
-│       ├── components/ui/           # shadcn/ui
-│       └── package.json
+├── apps/                                # TODO — SaaS Phase 2
+│   └── dashboard/                       # Next.js on Cloudflare Pages
 │
-├── supabase/
-│   ├── functions/
-│   │   └── ingest/index.ts          # Edge Function proxy
-│   ├── migrations/
-│   │   └── 001_initial_schema.sql   # 5 tables + RLS + Vault
+├── supabase/                            # TODO — SaaS Phase 1
+│   ├── functions/ingest/index.ts        # Edge Function proxy
+│   ├── migrations/001_initial_schema.sql
 │   └── config.toml
 │
-├── pnpm-workspace.yaml
-└── .env.example
+├── test-app-html/                       # Plain HTML test (no bundler)
+├── test-app-tw3/                        # Tailwind v3 test app
+├── test-app-tw4/                        # Tailwind v4 test app
+│
+├── pnpm-workspace.yaml                  # ✅ DONE
+├── turbo.json                           # ✅ DONE — parallel builds
+├── SAAS_PLAN.md                         # This file
+├── REACT_NATIVE_SDK.md                  # RN SDK research + plan
+└── PROJECT_PLAN.md                      # Master roadmap
 ```
+
+**Key:** `packages/core` is `private: true` — tsup bundles it into each SDK's `dist/`. Consumers install one package (`quick-bug-reporter-react` or `quick-bug-reporter-react-native`) and get everything.
 
 ---
 
 ## Migration Path
 
-### Phase 1 — Foundation (1-2 weeks)
+### Phase 0 — Monorepo Setup ✅ COMPLETE
+
+- [x] pnpm workspace + Turborepo configuration
+- [x] Extract `@quick-bug-reporter/core` (types, NetworkLogger, ConsoleCapture, Linear/Jira integrations)
+- [x] Move web SDK into `packages/react/` with rewired imports
+- [x] Scaffold `packages/react-native/` placeholder
+- [x] All 3 packages build + typecheck clean
+- [x] Test apps updated to point to local workspace packages
+- [x] README.md updated for monorepo structure
+
+### Phase 1 — SaaS Foundation (1-2 weeks)
 
 - [ ] Create Supabase project
 - [ ] Run migration (5 tables + RLS + Vault)
 - [ ] Build `ingest` Edge Function with UA parsing + analytics logging
-- [ ] Add `CloudIntegration` to npm package
+- [ ] Add `CloudIntegration` to `packages/core/src/integrations/cloud.ts`
 - [ ] Test end-to-end: SDK → Edge Function → Jira/Linear → report_events logged
 - [ ] Deploy via `supabase functions deploy`
 
 ### Phase 2 — Dashboard MVP (2 weeks)
 
-- [ ] Scaffold Next.js app with Supabase Auth
+- [ ] Scaffold Next.js app in `apps/dashboard/` with Supabase Auth
 - [ ] Project CRUD + key generation
 - [ ] Integration config (Jira/Linear credential forms → Vault)
 - [ ] **Analytics page** (bug count chart, browser/OS/version breakdowns)
@@ -528,7 +548,15 @@ bug-reporter-saas/
 - [ ] Landing page
 - [ ] Launch on Product Hunt / HN / X
 
-### Phase 4 — Growth (ongoing)
+### Phase 4 — React Native SDK (2-3 weeks)
+
+- [ ] Build React Native SDK in `packages/react-native/` (see REACT_NATIVE_SDK.md)
+- [ ] Shake-to-report, screenshot, video, annotation, bottom sheet UI
+- [ ] Add mobile columns to report_events (`platform`, `device_model`, etc.)
+- [ ] Test with Expo dev client example app
+- [ ] Publish to npm
+
+### Phase 5 — Growth (ongoing)
 
 - [ ] Team invites + roles
 - [ ] Advanced analytics (trends, regressions, comparisons)

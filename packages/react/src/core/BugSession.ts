@@ -1,4 +1,4 @@
-import { NetworkLogger } from "./NetworkLogger";
+import { NetworkLogger } from "@quick-bug-reporter/core";
 import { ScreenRecorder } from "./ScreenRecorder";
 import { CaptureRegion, ScreenshotCapturer } from "./ScreenshotCapturer";
 import {
@@ -6,7 +6,7 @@ import {
   DEFAULT_MAX_RECORDING_MS,
   RecordingStopReason,
   ReportCaptureMode,
-} from "./types";
+} from "@quick-bug-reporter/core";
 
 type BugSessionOptions = {
   maxDurationMs?: number;

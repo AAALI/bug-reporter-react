@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useBugReporter } from "bug-reporter-react";
+import { useBugReporter } from "quick-bug-reporter-react";
 import {
   Camera,
   Video,
@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { CodeBlock } from "../components/CodeBlock.tsx";
 
-const hookCode = `import { useBugReporter } from "bug-reporter-react";
+const hookCode = `import { useBugReporter } from "quick-bug-reporter-react";
 
 function MyBugUI() {
   const {

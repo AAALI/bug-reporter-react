@@ -12,9 +12,9 @@ import {
 } from "react";
 
 import { BugReporter } from "../core/BugReporter";
-import { ConsoleCapture } from "../core/ConsoleCapture";
 import type { CaptureRegion } from "../core/ScreenshotCapturer";
 import {
+  ConsoleCapture,
   BugClientMetadata,
   BugSessionArtifacts,
   BugSubmitResult,
@@ -23,8 +23,8 @@ import {
   ReportCaptureMode,
   ScreenshotHighlightRegion,
   toErrorMessage,
-} from "../core/types";
-import { BugReporterIntegrations } from "../integrations";
+  type BugReporterIntegrations,
+} from "@quick-bug-reporter/core";
 import { RegionSelector } from "./RegionSelector";
 
 type BugReporterProviderProps = {

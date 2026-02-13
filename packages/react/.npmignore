@@ -1,6 +1,5 @@
 # Source code (dist/ is shipped via "files" in package.json)
 src/
-test-app*/
 scripts/
 tsup.config.ts
 tsconfig.json

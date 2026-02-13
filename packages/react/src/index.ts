@@ -3,9 +3,12 @@ export { BugSession } from "./core/BugSession";
 export { ScreenRecorder } from "./core/ScreenRecorder";
 export { ScreenshotCapturer } from "./core/ScreenshotCapturer";
 export type { CaptureRegion } from "./core/ScreenshotCapturer";
-export { NetworkLogger } from "./core/NetworkLogger";
-export { ConsoleCapture } from "./core/ConsoleCapture";
-export type { ConsoleLogEntry, CapturedJsError } from "./core/ConsoleCapture";
+export { collectClientEnvironmentMetadata } from "./core/WebMetadata";
+
+// Re-exported from @quick-bug-reporter/core
+export { NetworkLogger } from "@quick-bug-reporter/core";
+export { ConsoleCapture } from "@quick-bug-reporter/core";
+export type { ConsoleLogEntry, CapturedJsError } from "@quick-bug-reporter/core";
 
 export type {
   BugClientMetadata,
@@ -19,19 +22,18 @@ export type {
   ReportCaptureMode,
   ScreenshotHighlightRegion,
   SubmitProgressCallback,
-} from "./core/types";
+} from "@quick-bug-reporter/core";
 export {
   DEFAULT_MAX_RECORDING_MS,
-  collectClientEnvironmentMetadata,
   formatConsoleLogs,
   formatJsErrors,
   formatNetworkLogs,
   toErrorMessage,
-} from "./core/types";
+} from "@quick-bug-reporter/core";
 
-export { LinearIntegration, type LinearIntegrationOptions } from "./integrations/linear";
-export { JiraIntegration, type JiraIntegrationOptions } from "./integrations/jira";
-export type { BugReporterIntegrations } from "./integrations";
+export { LinearIntegration, type LinearIntegrationOptions } from "@quick-bug-reporter/core";
+export { JiraIntegration, type JiraIntegrationOptions } from "@quick-bug-reporter/core";
+export type { BugReporterIntegrations } from "@quick-bug-reporter/core";
 
 export { BugReporterProvider, useBugReporter } from "./ui/BugReporterProvider";
 export { FloatingBugButton } from "./ui/FloatingBugButton";

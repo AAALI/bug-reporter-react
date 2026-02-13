@@ -3,7 +3,7 @@ import { CodeBlock } from "../components/CodeBlock.tsx";
 const coreClassCode = `import {
   BugReporter,
   LinearIntegration,
-} from "bug-reporter-react";
+} from "quick-bug-reporter-react";
 
 const integration = new LinearIntegration({
   apiKey: "lin_api_...",
@@ -37,7 +37,7 @@ const artifacts = await reporter.captureScreenshot({
   height: 300,
 });`;
 
-const sessionCode = `import { BugSession } from "bug-reporter-react";
+const sessionCode = `import { BugSession } from "quick-bug-reporter-react";
 
 const session = new BugSession({
   maxDurationMs: 60_000,

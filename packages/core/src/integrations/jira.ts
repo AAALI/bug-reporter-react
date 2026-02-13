@@ -8,7 +8,7 @@ import {
   formatJsErrors,
   formatNetworkLogs,
   toBlobFile,
-} from "../core/types";
+} from "../types";
 
 type JiraIssue = {
   id: string;

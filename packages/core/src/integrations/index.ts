@@ -1,4 +1,4 @@
-import { BugReporterIntegration } from "../core/types";
+import { BugReporterIntegration } from "../types";
 
 export { LinearIntegration, type LinearIntegrationOptions } from "./linear";
 export { JiraIntegration, type JiraIntegrationOptions } from "./jira";

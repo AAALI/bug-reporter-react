@@ -2,16 +2,16 @@ import { Link } from "react-router-dom";
 import { Zap, MousePointerClick, Code2, AppWindow } from "lucide-react";
 import { CodeBlock } from "../components/CodeBlock.tsx";
 
-const installSnippet = `npm install bug-reporter-react
+const installSnippet = `npm install quick-bug-reporter-react
 # or
-pnpm add bug-reporter-react`;
+pnpm add quick-bug-reporter-react`;
 
 const quickSetupSnippet = `import {
   BugReporterProvider,
   FloatingBugButton,
   BugReporterModal,
   LinearIntegration,
-} from "bug-reporter-react";
+} from "quick-bug-reporter-react";
 
 const linear = new LinearIntegration({
   submitProxyEndpoint: "/api/bug-report",
@@ -66,7 +66,7 @@ export function HomePage() {
     <div className="mx-auto max-w-4xl space-y-10">
       <header>
         <h1 className="text-3xl font-bold tracking-tight">
-          bug-reporter-react
+          quick-bug-reporter-react
         </h1>
         <p className="mt-2 text-lg text-gray-500">
           Drop-in bug reporter for React apps — screenshot capture, video

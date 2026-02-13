@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "./primitives/button";
 
-import { ScreenshotHighlightRegion } from "../core/types";
+import { ScreenshotHighlightRegion } from "@quick-bug-reporter/core";
 
 type ScreenshotAnnotationChange = {
   annotatedBlob: Blob | null;

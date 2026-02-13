@@ -5,7 +5,7 @@ import {
   BugReporterModal,
   LinearIntegration,
   JiraIntegration,
-} from "bug-reporter-react";
+} from "quick-bug-reporter-react";
 import { Layout } from "./components/Layout.tsx";
 import { HomePage } from "./pages/HomePage.tsx";
 import { QuickStartPage } from "./pages/QuickStartPage.tsx";

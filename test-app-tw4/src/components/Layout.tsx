@@ -17,7 +17,7 @@ export function Layout({ children }: { children: ReactNode }) {
         <div className="flex items-center gap-2 border-b border-gray-200 px-5 py-4">
           <Bug className="size-6 text-indigo-600" />
           <span className="text-lg font-bold tracking-tight">
-            bug-reporter-react
+            quick-bug-reporter-react
           </span>
         </div>
 

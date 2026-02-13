@@ -1,6 +1,6 @@
 import { BugSession } from "./BugSession";
 import { CaptureRegion } from "./ScreenshotCapturer";
-import type { ConsoleLogEntry, CapturedJsError } from "./ConsoleCapture";
+import type { ConsoleLogEntry, CapturedJsError } from "@quick-bug-reporter/core";
 import {
   BugClientMetadata,
   BugReporterIntegration,
@@ -9,8 +9,8 @@ import {
   BugTrackerProvider,
   DEFAULT_MAX_RECORDING_MS,
   SubmitProgressCallback,
-  collectClientEnvironmentMetadata,
-} from "./types";
+} from "@quick-bug-reporter/core";
+import { collectClientEnvironmentMetadata } from "./WebMetadata";
 
 type BugReporterOptions = {
   integration: BugReporterIntegration;

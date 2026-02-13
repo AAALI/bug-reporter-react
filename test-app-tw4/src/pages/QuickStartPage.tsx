@@ -6,7 +6,7 @@ const providerCode = `import {
   BugReporterModal,
   LinearIntegration,
   JiraIntegration,
-} from "bug-reporter-react";
+} from "quick-bug-reporter-react";
 
 // Option A: Linear via backend proxy (recommended)
 const linear = new LinearIntegration({

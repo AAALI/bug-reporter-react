@@ -15,7 +15,7 @@ import {
 import { Input } from "./primitives/input";
 import { Textarea } from "./primitives/textarea";
 
-import { BugTrackerProvider } from "../core/types";
+import { BugTrackerProvider } from "@quick-bug-reporter/core";
 import { ScreenshotAnnotator } from "./ScreenshotAnnotator";
 import { useBugReporter } from "./BugReporterProvider";
 
