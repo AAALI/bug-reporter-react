@@ -124,7 +124,7 @@ export function BugReporterProvider({
   }, []);
 
   const availableProviders = useMemo(() => {
-    return (["linear", "jira"] as const).filter((provider) => Boolean(integrations[provider]));
+    return (["cloud", "linear", "jira"] as const).filter((provider) => Boolean(integrations[provider]));
   }, [integrations]);
 
   const hasDraft = useMemo(() => {

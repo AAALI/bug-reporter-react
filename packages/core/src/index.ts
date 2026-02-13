@@ -29,4 +29,5 @@ export {
 
 export { LinearIntegration, type LinearIntegrationOptions } from "./integrations/linear";
 export { JiraIntegration, type JiraIntegrationOptions } from "./integrations/jira";
+export { CloudIntegration, type CloudIntegrationOptions } from "./integrations/cloud";
 export type { BugReporterIntegrations } from "./integrations";

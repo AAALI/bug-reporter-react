@@ -4,7 +4,7 @@ export type { ConsoleLogEntry, CapturedJsError };
 
 export const DEFAULT_MAX_RECORDING_MS = 2 * 60 * 1000;
 
-export type BugTrackerProvider = "linear" | "jira";
+export type BugTrackerProvider = "linear" | "jira" | "cloud";
 
 export type ReportCaptureMode = "video" | "screenshot";
 

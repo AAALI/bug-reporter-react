@@ -1,25 +1,42 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-// Service-role client bypasses RLS for ingestion
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
 
-export async function POST(request: Request) {
+Deno.serve(async (req) => {
+  // CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
+  if (req.method !== "POST") {
+    return Response.json(
+      { error: "Method not allowed." },
+      { status: 405, headers: corsHeaders },
+    );
+  }
+
   try {
-    const body = await request.json();
+    const body = await req.json();
     const { project_key, ...reportData } = body;
 
     if (!project_key) {
-      return NextResponse.json(
+      return Response.json(
         { error: "Missing project_key." },
-        { status: 400 }
+        { status: 400, headers: corsHeaders },
       );
     }
 
-    // Validate project key and check if active
+    // Service-role client — bypasses RLS
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+
+    // Validate project key
     const { data: project, error: projectError } = await supabase
       .from("projects")
       .select("id, is_active, rate_limit_per_min")
@@ -27,20 +44,20 @@ export async function POST(request: Request) {
       .single();
 
     if (projectError || !project) {
-      return NextResponse.json(
+      return Response.json(
         { error: "Invalid project key." },
-        { status: 401 }
+        { status: 401, headers: corsHeaders },
       );
     }
 
     if (!project.is_active) {
-      return NextResponse.json(
+      return Response.json(
         { error: "Project is inactive." },
-        { status: 403 }
+        { status: 403, headers: corsHeaders },
       );
     }
 
-    // Basic rate limit check — count events in the last minute
+    // Rate limit check
     const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
     const { count } = await supabase
       .from("report_events")
@@ -49,13 +66,13 @@ export async function POST(request: Request) {
       .gte("created_at", oneMinuteAgo);
 
     if ((count ?? 0) >= project.rate_limit_per_min) {
-      return NextResponse.json(
+      return Response.json(
         { error: "Rate limit exceeded." },
-        { status: 429 }
+        { status: 429, headers: corsHeaders },
       );
     }
 
-    // Insert the report event
+    // Insert report event
     const { data: event, error: insertError } = await supabase
       .from("report_events")
       .insert({
@@ -90,37 +107,35 @@ export async function POST(request: Request) {
         error_message: reportData.error_message,
         duration_ms: reportData.duration_ms,
       })
-      .select("id, created_at")
+      .select("id, created_at, project_id")
       .single();
 
     if (insertError) {
-      return NextResponse.json(
+      return Response.json(
         { error: "Failed to store report." },
-        { status: 500 }
+        { status: 500, headers: corsHeaders },
       );
     }
 
     // Trigger tracker forwarding asynchronously (non-blocking)
-    forwardToTracker(project.id, event).catch(() => {});
+    forwardToTracker(supabase, project.id, event).catch(() => {});
 
-    return NextResponse.json(
+    return Response.json(
       { id: event.id, created_at: event.created_at },
-      { status: 201, headers: corsHeaders }
+      { status: 201, headers: corsHeaders },
     );
   } catch {
-    return NextResponse.json(
+    return Response.json(
       { error: "Invalid request body." },
-      { status: 400, headers: corsHeaders }
+      { status: 400, headers: corsHeaders },
     );
   }
-}
+});
 
 // ─── Tracker Forwarding ──────────────────────────────────────────────
-
-async function forwardToTracker(
-  projectId: string,
-  event: { id: string; created_at: string }
-) {
+// deno-lint-ignore no-explicit-any
+async function forwardToTracker(supabase: any, projectId: string, event: any) {
+  // Get integration for this project
   const { data: integration } = await supabase
     .from("integrations")
     .select("provider, vault_secret_id, config")
@@ -130,7 +145,7 @@ async function forwardToTracker(
 
   if (!integration) return;
 
-  // Read API token from Vault
+  // Get the API token from Vault
   const { data: secrets } = await supabase.rpc("read_secret", {
     secret_id: integration.vault_secret_id,
   });
@@ -140,101 +155,136 @@ async function forwardToTracker(
     : secrets?.decrypted_secret;
   if (!apiToken) return;
 
-  // Get the full event data for the description
-  const { data: fullEvent } = await supabase
-    .from("report_events")
-    .select("*")
-    .eq("id", event.id)
-    .single();
-  if (!fullEvent) return;
-
   const provider = integration.provider as string;
   const config = (integration.config as Record<string, string>) ?? {};
-  const desc = buildDescription(fullEvent);
 
-  let externalId: string | null = null;
-  let externalKey: string | null = null;
-  let externalUrl: string | null = null;
+  const description = buildDescription(event);
+  let externalIssueId: string | null = null;
+  let externalIssueKey: string | null = null;
+  let externalIssueUrl: string | null = null;
 
   if (provider === "linear") {
-    const r = await forwardToLinear(apiToken, config.team_id, fullEvent.title, desc);
-    if (r) { externalId = r.id; externalKey = r.identifier; externalUrl = r.url; }
+    const result = await forwardToLinear(apiToken, config.team_id, event.title, description);
+    if (result) {
+      externalIssueId = result.id;
+      externalIssueKey = result.identifier;
+      externalIssueUrl = result.url;
+    }
   } else if (provider === "jira") {
-    const r = await forwardToJira(apiToken, config.team_id, config.email, fullEvent.title, desc);
-    if (r) { externalId = r.id; externalKey = r.key; externalUrl = r.url; }
+    const result = await forwardToJira(apiToken, config.team_id, config.email, event.title, description);
+    if (result) {
+      externalIssueId = result.id;
+      externalIssueKey = result.key;
+      externalIssueUrl = result.url;
+    }
   }
 
-  if (externalId) {
+  // Update report with external issue reference
+  if (externalIssueId) {
     await supabase
       .from("report_events")
-      .update({ external_issue_id: externalId, external_issue_key: externalKey, external_issue_url: externalUrl })
+      .update({
+        external_issue_id: externalIssueId,
+        external_issue_key: externalIssueKey,
+        external_issue_url: externalIssueUrl,
+      })
       .eq("id", event.id);
   }
 }
 
-function buildDescription(e: Record<string, unknown>): string {
+// deno-lint-ignore no-explicit-any
+function buildDescription(event: any): string {
   return [
-    "**Bug Report** from QuickBugs",
+    `**Bug Report** from QuickBugs`,
     "",
-    `- **Page:** ${e.page_url || "N/A"}`,
-    `- **Browser:** ${e.browser_name || "N/A"}`,
-    `- **OS:** ${e.os_name || "N/A"}`,
-    `- **Device:** ${e.device_type || "N/A"}`,
-    `- **Capture:** ${e.capture_mode || "N/A"}`,
-    `- **Environment:** ${e.environment || "N/A"}`,
+    `- **Page:** ${event.page_url || "N/A"}`,
+    `- **Browser:** ${event.browser_name || "N/A"}`,
+    `- **OS:** ${event.os_name || "N/A"}`,
+    `- **Device:** ${event.device_type || "N/A"}`,
+    `- **Capture:** ${event.capture_mode || "N/A"}`,
+    `- **Environment:** ${event.environment || "N/A"}`,
   ].join("\n");
 }
 
 async function forwardToLinear(
-  apiKey: string, teamId: string | undefined, title: string, description: string
+  apiKey: string,
+  teamId: string | undefined,
+  title: string,
+  description: string,
 ): Promise<{ id: string; identifier: string; url: string } | null> {
-  const mutation = `mutation($input:IssueCreateInput!){issueCreate(input:$input){success issue{id identifier url}}}`;
-  const variables = { input: { title, description, ...(teamId ? { teamId } : {}) } };
+  const mutation = `
+    mutation CreateIssue($input: IssueCreateInput!) {
+      issueCreate(input: $input) {
+        success
+        issue { id identifier url }
+      }
+    }
+  `;
+
+  const variables: Record<string, unknown> = {
+    input: {
+      title,
+      description,
+      ...(teamId ? { teamId } : {}),
+    },
+  };
+
   const res = await fetch("https://api.linear.app/graphql", {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: apiKey },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: apiKey,
+    },
     body: JSON.stringify({ query: mutation, variables }),
   });
+
   if (!res.ok) return null;
+
   const body = await res.json();
   return body?.data?.issueCreate?.issue ?? null;
 }
 
 async function forwardToJira(
-  apiToken: string, siteUrl: string | undefined, email: string | undefined, title: string, description: string
+  apiToken: string,
+  siteUrl: string | undefined,
+  email: string | undefined,
+  title: string,
+  description: string,
 ): Promise<{ id: string; key: string; url: string } | null> {
   if (!siteUrl || !email) return null;
-  const basicAuth = Buffer.from(`${email}:${apiToken}`).toString("base64");
+
+  const basicAuth = btoa(`${email}:${apiToken}`);
+
   const res = await fetch(`https://${siteUrl}/rest/api/3/issue`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Basic ${basicAuth}` },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Basic ${basicAuth}`,
+    },
     body: JSON.stringify({
       fields: {
         summary: title,
-        description: { type: "doc", version: 1, content: [{ type: "paragraph", content: [{ type: "text", text: description }] }] },
+        description: {
+          type: "doc",
+          version: 1,
+          content: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: description }],
+            },
+          ],
+        },
         issuetype: { name: "Bug" },
       },
     }),
   });
+
   if (!res.ok) return null;
+
   const body = await res.json();
-  return { id: body.id, key: body.key, url: `https://${siteUrl}/browse/${body.key}` };
-}
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
-};
-
-// CORS preflight
-export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 204,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
-    },
-  });
+  return {
+    id: body.id,
+    key: body.key,
+    url: `https://${siteUrl}/browse/${body.key}`,
+  };
 }

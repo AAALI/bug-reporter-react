@@ -33,6 +33,7 @@ export {
 
 export { LinearIntegration, type LinearIntegrationOptions } from "@quick-bug-reporter/core";
 export { JiraIntegration, type JiraIntegrationOptions } from "@quick-bug-reporter/core";
+export { CloudIntegration, type CloudIntegrationOptions } from "@quick-bug-reporter/core";
 export type { BugReporterIntegrations } from "@quick-bug-reporter/core";
 
 export { BugReporterProvider, useBugReporter } from "./ui/BugReporterProvider";

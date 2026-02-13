@@ -34,14 +34,27 @@ export function StepConnectTracker({
     setLoading(true);
     setError(null);
 
-    // Store credentials via Supabase (Vault will be wired in Phase 2)
-    // For now, store a placeholder vault_secret_id
+    // Store API token in Supabase Vault (encrypted at rest)
+    const { data: vaultId, error: vaultError } = await supabase.rpc(
+      "create_secret",
+      {
+        secret_value: apiToken.trim(),
+        secret_name: `${provider}-${projectId}`,
+      },
+    );
+
+    if (vaultError || !vaultId) {
+      setError(vaultError?.message ?? "Failed to store credentials securely.");
+      setLoading(false);
+      return;
+    }
+
     const { error: integrationError } = await supabase
       .from("integrations")
       .insert({
         project_id: projectId,
         provider,
-        vault_secret_id: crypto.randomUUID(),
+        vault_secret_id: vaultId,
         config: {
           team_id: teamId.trim() || undefined,
         },
