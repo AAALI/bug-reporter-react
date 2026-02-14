@@ -1,18 +1,21 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { IconBug } from "@tabler/icons-react";
+import { AppHeader } from "@/components/app/app-header";
 import { ProjectCard } from "./project-card";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
+  // Middleware already validated auth with getUser() — use getSession() here
+  // to read from cookie (0ms) instead of another round trip (~250ms)
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
 
-  if (!user) {
+  if (!session) {
     redirect("/login");
   }
+  const user = session.user;
 
   // Get user's org (required before parallel fetches)
   const { data: membership } = await supabase
@@ -57,25 +60,12 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#f5f7fb]">
-      {/* Header */}
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-          <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-2 font-semibold text-slate-900">
-              <IconBug className="size-5 text-primary" />
-              QuickBugs
-            </Link>
-            <span className="text-slate-300">/</span>
-            <span className="text-sm font-medium text-slate-700">{org.name}</span>
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-              {org.plan}
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-slate-500">{user.email}</span>
-          </div>
-        </div>
-      </header>
+      <AppHeader
+        orgName={org.name}
+        plan={org.plan}
+        email={user.email ?? ""}
+        userName={user.user_metadata?.full_name}
+      />
 
       <main className="mx-auto max-w-6xl px-6 py-8">
         {/* Stats */}
